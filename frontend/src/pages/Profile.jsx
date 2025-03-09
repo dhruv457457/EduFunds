@@ -7,8 +7,8 @@ import useContract from "../hooks/useContract";
 import { useIPFS } from "../hooks/useIPFS";
 
 const Profile = () => {
-  const { account, getStudentInfo, getInvestorInfo, getEarnedNFTs, error: contractError } = useContract();
-  const { fetchFromIPFS, error: ipfsError } = useIPFS();
+  const { account, getStudentInfo, getInvestorInfo, getEarnedNFTs } = useContract();
+  const { fetchFromIPFS } = useIPFS();
   
   const [userData, setUserData] = useState(null);
   const [userType, setUserType] = useState(null);
@@ -20,57 +20,66 @@ const Profile = () => {
       setLoading(false);
       return;
     }
-
+  
     setLoading(true);
     setError(null);
-
+  
     try {
       // Check student status first
       const studentInfo = await getStudentInfo(account);
-      if (studentInfo) {
-        const [ipfsData, nfts] = await Promise.all([
-          fetchFromIPFS(studentInfo.ipfsHash),
-          getEarnedNFTs(account)
-        ]);
-
+      if (studentInfo && studentInfo.ipfsHash) {
+        const ipfsData = await fetchFromIPFS(studentInfo.ipfsHash);
+        console.log('Fetched IPFS data:', ipfsData);
+  
+        if (!ipfsData) {
+          throw new Error('No data found on IPFS');
+        }
+  
         setUserData({
           ...ipfsData,
-          totalFunds: studentInfo.totalFunds,
-          nftCount: studentInfo.nftCount,
-          earnedNFTs: nfts
+          totalFundsReceived: studentInfo.totalFundsReceived || 0,
+          earnedNFTs: await getEarnedNFTs(account) || [],
+          previousTransactions: [] // Add actual transactions if available
         });
         setUserType("student");
         return;
       }
-
+  
       // If not student, check investor status
       const investorInfo = await getInvestorInfo(account);
-      if (investorInfo) {
+      if (investorInfo && investorInfo.ipfsHash) {
         const ipfsData = await fetchFromIPFS(investorInfo.ipfsHash);
-        
+        console.log('Fetched IPFS data:', ipfsData);
+  
+        if (!ipfsData) {
+          throw new Error('No data found on IPFS');
+        }
+  
         setUserData({
           ...ipfsData,
-          totalInvested: investorInfo.totalInvested
+          totalInvestmentMade: investorInfo.totalInvestmentMade || 0,
+          previousTransactions: [] // Add actual transactions if available
         });
         setUserType("investor");
         return;
       }
-
+  
       // If neither, clear data
       setUserData(null);
       setUserType(null);
-
+  
     } catch (error) {
-      if (!error.message.includes("Not a student") && !error.message.includes("Not an investor")) {
-        setError("Failed to load profile: " + error.message);
-      }
+      console.error("Profile load error:", error);
+      setError(`Failed to load profile: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadProfile();
+    if (account) {
+      loadProfile();
+    }
   }, [account]);
 
   const handleRetry = () => {
@@ -96,11 +105,11 @@ const Profile = () => {
       
       <main className="container mx-auto px-4 py-8">
         {/* Error Display */}
-        {(error || contractError || ipfsError) && (
+        {error && (
           <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg flex justify-between items-center">
             <div>
               <p className="font-medium">Error:</p>
-              <p>{error || contractError || ipfsError}</p>
+              <p>{error}</p>
             </div>
             <button 
               onClick={handleRetry}

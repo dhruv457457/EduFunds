@@ -5,79 +5,80 @@ export const useIPFS = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [ipfsError, setIpfsError] = useState(null);
 
-  // Verify environment variables
-  const PINATA_API_KEY = import.meta.env.VITE_PINATA_API_KEY?.toString().trim();
-  const PINATA_SECRET_KEY = import.meta.env.VITE_PINATA_SECRET_KEY?.toString().trim();
-  
-  if (!PINATA_API_KEY || !PINATA_SECRET_KEY) {
-    console.error('Pinata API credentials not found in environment variables!');
-    console.log('Current environment:', import.meta.env);
-  }
-
-  // Validate keys before any operation
-  const validateKeys = () => {
-    if (!PINATA_API_KEY || !PINATA_SECRET_KEY) {
-      throw new Error('Missing Pinata API credentials');
-    }
-    if (typeof PINATA_API_KEY !== 'string' || typeof PINATA_SECRET_KEY !== 'string') {
-      throw new Error('Invalid API key format');
-    }
-  };
-
   const uploadToIPFS = async (data) => {
     try {
       setIsUploading(true);
       setIpfsError(null);
-      
-      validateKeys(); // Check keys before proceeding
 
       const response = await axios.post(
         'https://api.pinata.cloud/pinning/pinJSONToIPFS',
         {
           pinataContent: data,
           pinataMetadata: {
-            name: 'profile-data.json',
-            keyvalues: { app: 'edufund' }
+            name: 'edufund-data.json',
+            keyvalues: {
+              app: 'edufund',
+              timestamp: Date.now().toString()
+            }
           }
         },
         {
           headers: {
             'Content-Type': 'application/json',
-            'pinata_api_key': PINATA_API_KEY,
-            'pinata_secret_api_key': PINATA_SECRET_KEY
+            'pinata_api_key': '6d591084a29fb4a99861',
+            'pinata_secret_api_key': '0f239a7e96449068287982cd9fbc71798f8907cd608aaa86c4d538753e76ab0a'
           },
           timeout: 15000
         }
       );
 
-      return `ipfs://${response.data.IpfsHash}`;
+      // Return ONLY the CID (not a custom string)
+      return response.data.IpfsHash; // Example: "QmPNEi4yf9usBH747BGzzZdGNJpVDfao8MG1k8SeA2UbfA"
     } catch (error) {
-      const message = error.response?.data?.error?.details || 
-                     error.message || 
-                     'IPFS upload failed';
-      setIpfsError(message);
+      setIpfsError(error.response?.data?.error?.details || error.message || 'IPFS upload failed');
       return null;
     } finally {
       setIsUploading(false);
     }
   };
 
-  // Similar validation for fetchFromIPFS
   const fetchFromIPFS = async (ipfsHash) => {
     try {
-      validateKeys();
-      const cid = ipfsHash.replace('ipfs://', '');
+      if (!ipfsHash) {
+        throw new Error('No IPFS hash provided');
+      }
+  
+      // Remove 'ipfs://' prefix if present
+      const sanitizedHash = ipfsHash.replace('ipfs://', '');
+  
+      // Extract the actual CID (Qm... or bafy...)
+      const cid = sanitizedHash.startsWith('Qm') || sanitizedHash.startsWith('bafy') 
+        ? sanitizedHash 
+        : sanitizedHash.split('/').pop();
+  
+      if (!cid || (!cid.startsWith('Qm') && !cid.startsWith('bafy'))) {
+        throw new Error(`Invalid IPFS CID format: ${ipfsHash}`);
+      }
+  
+      console.log('Fetching from IPFS with CID:', cid);
+  
       const response = await axios.get(
         `https://gateway.pinata.cloud/ipfs/${cid}`,
-        { timeout: 10000 }
+        { 
+          timeout: 10000,
+          headers: {
+            'Accept': 'application/json'
+          }
+        }
       );
-      return response.data;
+  
+      return typeof response.data === 'string' 
+        ? JSON.parse(response.data)
+        : response.data;
+  
     } catch (error) {
-      const message = error.response?.data?.error?.details || 
-                     error.message || 
-                     'IPFS fetch failed';
-      setIpfsError(message);
-      return null;
+      console.error('IPFS fetch failed:', error);
+      throw new Error(`IPFS fetch failed: ${error.message}`);
     }
   };
 

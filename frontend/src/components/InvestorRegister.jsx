@@ -95,18 +95,18 @@ const InvestorRegister = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Phone</label>
-              <input
-                type="tel"
-                name="phoneNumber"
-                placeholder="123-456-7890"
-                value={form.phoneNumber}
-                onChange={handleChange}
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500"
-                pattern="[0-9]{3}-[0-9]{3}-[0-9]{4}"
-                required
-              />
-            </div>
+            <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+            <input
+              type="tel"
+              name="phoneNumber"
+              placeholder="1234567890"
+              value={form.phoneNumber}
+              onChange={handleChange}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+              pattern="[0-9]{10}"
+              required
+            />
+          </div>
 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">Company</label>

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import contractABI from "../contracts/UserRegistry.json";
 
-const CONTRACT_ADDRESS = "0x9948a4ED4053916F249296C2D145362562569368";
+const CONTRACT_ADDRESS = "0x7BF518507Fd6D233e2ed50fdeCec2B134905f2eD";
 
 const useContract = () => {
   const [contract, setContract] = useState(null);
